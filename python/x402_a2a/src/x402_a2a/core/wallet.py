@@ -171,10 +171,14 @@ def process_payment(
         "nonce": nonce_bytes,
     }
 
-    # --- Get EIP-712 domain info from the contract ---
+    # --- Get EIP-712 domain info ---
+    # Prefer the domain the server advertises in `extra`: some EIP-3009 tokens
+    # (e.g. Tether USD on Celo) have no version() function, and name() is not
+    # guaranteed to match the domain name. Fall back to the contract otherwise.
     chain_id = w3.eth.chain_id
-    token_name = asset_contract.functions.name().call()
-    token_version = asset_contract.functions.version().call()
+    extra = requirements.extra or {}
+    token_name = extra.get("name") or asset_contract.functions.name().call()
+    token_version = extra.get("version") or asset_contract.functions.version().call()
 
     # Set up logging
     logging.basicConfig(level=logging.INFO)

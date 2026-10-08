@@ -81,3 +81,38 @@ def test_nonce_is_unique_per_payment(account, requirements, mock_web3):
     second = _nonce(process_payment(requirements, account))
 
     assert first != second
+
+
+def _signed_domain(requirements, account):
+    """Returns the EIP-712 domain process_payment signed over."""
+    with patch("x402_a2a.core.wallet.encode_typed_data") as encode:
+        encode.side_effect = lambda full_message: full_message
+        with patch.object(type(account), "sign_message") as sign:
+            sign.return_value.r = 1
+            sign.return_value.s = 1
+            sign.return_value.v = 27
+            process_payment(requirements, account)
+        return encode.call_args.kwargs["full_message"]["domain"]
+
+
+def test_domain_comes_from_requirements_extra(account, requirements, mock_web3):
+    """Tokens such as Tether USD on Celo expose no version(); the server
+    advertises the domain in extra and the signer must use it."""
+    requirements.extra = {"name": "Tether USD", "version": "1"}
+    mock_web3.version.return_value.call.side_effect = Exception("execution reverted")
+
+    domain = _signed_domain(requirements, account)
+
+    assert domain["name"] == "Tether USD"
+    assert domain["version"] == "1"
+    mock_web3.name.assert_not_called()
+    mock_web3.version.assert_not_called()
+
+
+def test_domain_falls_back_to_contract(account, requirements, mock_web3):
+    requirements.extra = None
+
+    domain = _signed_domain(requirements, account)
+
+    assert domain["name"] == "USDC"
+    assert domain["version"] == "2"

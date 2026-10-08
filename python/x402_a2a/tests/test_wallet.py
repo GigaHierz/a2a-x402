@@ -13,10 +13,11 @@
 # limitations under the License.
 """Unit tests for EIP-3009 payment signing."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
 from eth_account import Account
+
 from x402_a2a.core.wallet import process_payment
 from x402_a2a.types import PaymentRequirements
 
